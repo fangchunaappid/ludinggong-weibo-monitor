@@ -132,6 +132,20 @@ def fetch_timeline_page(page, user_cookie=None):
     raise RuntimeError("拉取微博失败: %s" % last_err)
 
 
+def fetch_long_text(wid, cookie=None):
+    """长文帖全文：列表页 text 被截到 ~140 字，调 extend 接口取完整正文
+    （返回字段是 data.longTextContent，游客身份即可调用）。失败返回空串。"""
+    url = "https://m.weibo.cn/statuses/extend?id=%s" % wid
+    try:
+        data = http_get_json(url, cookie or _visitor_cookies())
+    except Exception as e:  # noqa: BLE001
+        print("  长文 %s 全文获取失败：%s" % (wid, e))
+        return ""
+    if data.get("ok") != 1:
+        return ""
+    return clean_text((data.get("data") or {}).get("longTextContent") or "")
+
+
 # ---------------------------------------------------------------- 解析
 _HTML_TAG = re.compile(r"<[^>]+>")
 _SPACES = re.compile(r"\s+")
@@ -194,12 +208,13 @@ def norm(text):
 
 
 def collect_new(existing_posts, cookie=None):
-    """翻页抓取直到撞上已知旧帖；返回(新帖列表, 翻页数, 首页是否正常)。"""
+    """翻页抓取直到撞上已知旧帖；返回(新帖列表, 修复老帖数, 翻页数, 首页是否正常)。"""
     known_ids = {p.get("id") for p in existing_posts if p.get("id")}
     known_keys = {(p["date"], norm(p["text"])) for p in existing_posts}
     newest_known = max(p["date"] for p in existing_posts) if existing_posts else ""
 
-    new, seen_ids, seen_keys = [], set(), set()
+    new, repaired = [], []
+    seen_ids, seen_keys = set(), set()
     pages_used = 0
     for page in range(1, MAX_PAGES + 1):
         pages_used = page
@@ -213,22 +228,38 @@ def collect_new(existing_posts, cookie=None):
         if not ok or not mblogs:
             print("  第 %d 页无数据，停止" % page)
             if page == 1:
-                return new, pages_used, False
+                return new, repaired, pages_used, False
             break
 
         hit_known = False
         for mb in mblogs:
             # 只收鹿鼎公本人的内容：原创帖，或他回复粉丝的帖子（正文以「回复@」开头）
             text = clean_text(mb.get("text") or "")
+            # 列表页截断的帖子尾部带「...全文」链接字样，去掉
+            text = re.sub(r"(?:\.{3}|…)\s*全文$", "", text).strip()
             if mb.get("retweeted_status") and not text.startswith("回复@"):
                 continue
             wid = str(mb.get("id") or mb.get("mid") or "")
             date = parse_date(mb.get("created_at"))
             if not date or not text:
                 continue
+            # 长文帖：列表页 text 被截到 ~140 字，调 extend 接口取完整正文
+            if mb.get("isLongText") and wid:
+                full = fetch_long_text(wid, cookie)
+                if len(full) > len(text):
+                    text = full
             key = (date, norm(text))
             if wid and wid in known_ids:
                 hit_known = True
+                # 修复老帖：本次正文比库内长（历史截断）就更新；
+                # 库内尾部带「...全文」残渣而本次已剥掉的，等长也更新
+                for p in existing_posts:
+                    if str(p.get("id")) == wid:
+                        old = re.sub(r"(?:\.{3}|…)\s*全文$", "", p["text"]).strip()
+                        if len(text) > len(old) or (text != old and len(text) == len(old)):
+                            p["text"] = text
+                            repaired.append(wid)
+                        break
                 continue
             if key in known_keys:
                 hit_known = True
@@ -252,7 +283,7 @@ def collect_new(existing_posts, cookie=None):
             print("  第 %d 页已早于库内最早帖，停止" % page)
             break
         time.sleep(PAGE_DELAY)
-    return new, pages_used, True
+    return new, repaired, pages_used, True
 
 
 # ---------------------------------------------------------------- 飞书通知
@@ -289,7 +320,7 @@ def main():
 
     cookie = os.environ.get("WEIBO_COOKIE", "").strip() or None
     try:
-        new, pages, first_ok = collect_new(posts, cookie)
+        new, repaired, pages, first_ok = collect_new(posts, cookie)
     except RuntimeError as e:
         print("抓取失败：%s" % e)
         send_feishu("⚠️ 鹿鼎公微博监控抓取失败（请求异常：%s），本次未入库，请检查 WEIBO_COOKIE。" % str(e)[:80])
@@ -302,8 +333,14 @@ def main():
                     "本次未入库，请更新仓库 Secrets 中的 WEIBO_COOKIE。")
         return 1
 
+    if repaired:
+        print("修复历史截断帖 %d 条" % len(repaired))
     if not new:
-        print("无新帖，不推送。")
+        if repaired:
+            save_posts(data)
+            print("已修复历史截断帖，无新帖，不推送。")
+        else:
+            print("无新帖，不推送。")
         return 0
 
     new.sort(key=lambda p: p["date"], reverse=True)  # 新→旧
