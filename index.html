@@ -74,42 +74,13 @@ function hl(s){
 }
 function wd(d){try{return '周'+'日一二三四五六'[new Date(d+'T12:00:00+08:00').getDay()]}catch(e){return ''}}
 
-var LSK='ldg_weibo_key', BLOB=null;
-async function dec(blob,pwd){
-  const enc=new TextEncoder();
-  const base=await crypto.subtle.importKey("raw",enc.encode(pwd),"PBKDF2",false,["deriveKey"]);
-  const key=await crypto.subtle.deriveKey(
-    {name:"PBKDF2",salt:Uint8Array.from(atob(blob.salt),function(c){return c.charCodeAt(0)}),iterations:blob.iters,hash:"SHA-256"},
-    base,{name:"AES-GCM",length:256},false,["decrypt"]);
-  const iv=Uint8Array.from(atob(blob.iv),function(c){return c.charCodeAt(0)});
-  const ct=Uint8Array.from(atob(blob.ct),function(c){return c.charCodeAt(0)});
-  const tag=Uint8Array.from(atob(blob.tag),function(c){return c.charCodeAt(0)});
-  const jt=new Uint8Array(ct.length+tag.length);jt.set(ct);jt.set(tag,ct.length);
-  return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,jt));
-}
-async function fetchDecrypted(){
-  if(!BLOB){
-    try{BLOB=await (await fetch('./data/posts.enc.json')).json()}
-    catch(e){stat.textContent='加载失败：请通过 GitHub Pages 访问（本地 file:// 会拦截 fetch）';return null}
-  }
-  var saved=localStorage.getItem(LSK)||'';
-  if(saved){try{return await dec(BLOB,saved)}catch(e){}}
-  for(;;){
-    var p=prompt('此内容仅限授权访问，请输入口令');
-    if(p===null){stat.textContent='需要口令才能查看';return null}
-    try{var t=await dec(BLOB,p);localStorage.setItem(LSK,p);return t}
-    catch(e){alert('口令不正确，请重试')}
-  }
-}
 async function load(){
   if(MODE===1){DATA=norm(EMBED);buildFilters();apply();return}
-  var txt=await fetchDecrypted();
-  if(txt===null)return;
   try{
-    var j=JSON.parse(txt);
+    var j=JSON.parse(await (await fetch('./data/posts.json')).text());
     DATA=norm(j.posts.map(function(p){return{d:p.date,p:'微博',k:'',x:p.text,t:p.truncated?1:0}}));
     buildFilters();apply();
-  }catch(e){stat.textContent='数据解析失败'}
+  }catch(e){stat.textContent=(e&&e.message&&/fetch/i.test(e.message))?'加载失败：请通过 GitHub Pages 访问（本地 file:// 会拦截 fetch）':'数据解析失败'}
 }
 function norm(a){
   return a.filter(function(p){return p&&p.d&&p.x})

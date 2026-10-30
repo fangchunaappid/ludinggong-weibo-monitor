@@ -32,15 +32,11 @@ jobs:
       - name: Sync latest base（排队运行可能拿到旧底库）
         run: git pull --rebase origin main
 
-      - name: Install deps（pycryptodome：底库加密）
-        run: pip install -r requirements.txt
-
       - name: Run monitor
         env:
           WEIBO_UID: "3962719063"
           WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
-          DATA_KEY: ${{ secrets.DATA_KEY }}
         run: python monitor.py
 
       - name: Commit & Push（push 被拒则重置到远端并重跑，数据幂等）
@@ -48,9 +44,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           commit_and_push() {
-            git add data/posts.enc.json
+            git add data/posts.json
             if git diff --cached --quiet; then
-              echo "posts.enc.json 无变化，跳过提交"
+              echo "posts.json 无变化，跳过提交"
               return 0
             fi
             git commit -m "monitor: 增量入库 $(date -u +'%Y-%m-%d %H:%M') UTC"

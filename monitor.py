@@ -17,8 +17,6 @@ weibo-monitor — 超级鹿鼎公微博原创帖增量监控
   FEISHU_WEBHOOK  可选，飞书自定义机器人 Webhook（GitHub Secrets）
 """
 
-import base64
-import hashlib
 import html
 import json
 import os
@@ -27,13 +25,10 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from Crypto.Cipher import AES
 from datetime import datetime, timedelta, timezone
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(HERE, "data", "posts.json")
-ENC_FILE = os.path.join(HERE, "data", "posts.enc.json")
-KEY = os.environ.get("DATA_KEY", "").strip()
 UID = os.environ.get("WEIBO_UID", "3962719063")
 TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
 MAX_PAGES = 30          # 单次运行最多翻页数（安全上限）
@@ -77,11 +72,6 @@ def _reset_visitor():
 
 # ---------------------------------------------------------------- 底库读写
 def load_posts():
-    if not os.path.exists(DATA_FILE) and os.path.exists(ENC_FILE):
-        if not KEY:
-            print("缺 DATA_KEY，无法解密底库")
-            sys.exit(1)
-        decrypt_data_file()
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
     return data
@@ -97,8 +87,6 @@ def save_posts(data):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=1)
     os.replace(tmp, DATA_FILE)
-    if KEY:
-        encrypt_data_file()
 
 
 # ---------------------------------------------------------------- 抓取
@@ -329,45 +317,6 @@ def main():
     return 0
 
 
-# ---------------------------------------------------------------- 加密层
-# 仓库只存密文 posts.enc.json（AES-GCM-256 + PBKDF2-SHA256），口令在 DATA_KEY；
-# 明文 posts.json 仅存在于运行内存/本地，绝不入库。浏览器端用 WebCrypto 解密。
-def _derive_key(password: str, salt: bytes) -> bytes:
-    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 250000, dklen=32)
-
-
-def encrypt_data_file():
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        obj = json.load(f)
-    salt, iv = os.urandom(16), os.urandom(12)
-    ct, tag = AES.new(_derive_key(KEY, salt), AES.MODE_GCM, nonce=iv).encrypt_and_digest(
-        json.dumps(obj, ensure_ascii=False).encode("utf-8"))
-    blob = {"v": 1, "kdf": "PBKDF2-SHA256", "iters": 250000,
-            "salt": base64.b64encode(salt).decode(),
-            "iv": base64.b64encode(iv).decode(),
-            "ct": base64.b64encode(ct).decode(),
-            "tag": base64.b64encode(tag).decode()}
-    tmp = ENC_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(blob, f, ensure_ascii=False)
-    os.replace(tmp, ENC_FILE)
-
-
-def decrypt_data_file():
-    with open(ENC_FILE, "r", encoding="utf-8") as f:
-        d = json.load(f)
-    key = _derive_key(KEY, base64.b64decode(d["salt"]))
-    pt = AES.new(key, AES.MODE_GCM, nonce=base64.b64decode(d["iv"]), mac_len=16)\
-        .decrypt_and_verify(base64.b64decode(d["ct"]), base64.b64decode(d["tag"]))
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        f.write(pt.decode("utf-8"))
-
-
 if __name__ == "__main__":
-    if "--decrypt-only" in sys.argv:
-        decrypt_data_file(); print("已解密", DATA_FILE)
-    elif "--encrypt-only" in sys.argv:
-        encrypt_data_file(); print("已加密", ENC_FILE)
-    else:
-        sys.exit(main())
+    sys.exit(main())
 
