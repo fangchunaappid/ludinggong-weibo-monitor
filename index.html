@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>超级鹿鼎公 · 微博帖（自动更新）</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+:root{--bg:#f4f3ef;--surface:#fff;--ink:#1b1f24;--muted:#70787f;--line:#e6e3db;--accent:#2e6b5e;--accent-ink:#fff;--chipbg:#eceae3;--wb-bg:#fff3e0;--wb-ink:#a35f00;--xq-bg:#e9f1ee;--xq-ink:#2e6b5e;--cut:#c0392b;--mark:#ffe58f}
+html.dark{--bg:#0f1113;--surface:#191c20;--ink:#e6e8ea;--muted:#9aa1a8;--line:#2a2f35;--accent:#5f9c8d;--accent-ink:#0e1211;--chipbg:#23272c;--wb-bg:#3a2c14;--wb-ink:#e0a458;--xq-bg:#17302a;--xq-ink:#7fc0ad;--cut:#e07b6d;--mark:#6b5b1e}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+#hd{position:sticky;top:0;z-index:9;background:var(--bg);padding:10px 12px 8px;padding-top:calc(10px + env(safe-area-inset-top));border-bottom:1px solid var(--line)}
+.row1{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+h1{font-size:17px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ico{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;min-width:36px;height:36px;font-size:16px;cursor:pointer}
+#q{width:100%;height:40px;border:1px solid var(--line);border-radius:11px;padding:0 12px;font-size:16px;background:var(--surface);color:var(--ink);outline:none;margin-bottom:8px}
+.chips{display:flex;gap:8px;align-items:center;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 13px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.chip b{font-weight:700;opacity:.7;font-size:12px}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chips select{flex:0 0 auto;appearance:none;-webkit-appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 10px;font-size:13.5px;font-weight:600;max-width:130px;height:32px}
+#stat{font-size:12px;color:var(--muted);margin-top:6px}
+.gh{display:flex;align-items:baseline;gap:8px;margin:16px 14px 6px;font-size:13px;font-weight:700;color:var(--muted)}
+.gh span{font-weight:400;font-size:12px}
+.art{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:0 12px 10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.plat{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px}
+.p微博{background:var(--wb-bg);color:var(--wb-ink)}.p雪球{background:var(--xq-bg);color:var(--xq-ink)}
+.k{font-size:11.5px;background:var(--chipbg);border-radius:6px;padding:1px 7px;color:var(--muted)}
+.cut{font-size:11px;color:var(--cut);border:1px solid var(--cut);border-radius:6px;padding:0 6px}
+.copy{margin-left:auto;font-size:11.5px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 9px;cursor:pointer;user-select:none}
+.x{white-space:pre-wrap;word-break:break-word;font-size:15.5px}
+mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 1px}
+#end{text-align:center;color:var(--muted);padding:26px 0 calc(50px + env(safe-area-inset-bottom));font-size:13px}
+#top{position:fixed;right:14px;bottom:calc(18px + env(safe-area-inset-bottom));width:44px;height:44px;border-radius:50%;border:none;background:var(--accent);color:var(--accent-ink);font-size:19px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;z-index:8}
+#toast{position:fixed;left:50%;bottom:calc(78px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(20,22,25,.82);color:#fff;font-size:13px;padding:8px 16px;border-radius:999px;z-index:99;pointer-events:none}
+#sentinel{height:2px}
+</style>
+</head>
+<body>
+<header id="hd">
+ <div class="row1"><h1>超级鹿鼎公 · 微博帖</h1><button class="ico" id="theme" title="深浅模式">◐</button></div>
+ <input id="q" type="search" placeholder="搜索正文关键词…" autocomplete="off">
+ <div class="chips">
+  <button class="chip on" data-p="">全部 <b>0</b></button>
+  <button class="chip" data-p="微博">微博 <b>0</b></button>
+  <button class="chip" data-p="雪球">雪球 <b>0</b></button>
+  <select id="year"><option value="">全部年份</option></select>
+  <select id="cat"><option value="">全部分类</option></select>
+ </div>
+ <div id="stat">加载中…</div>
+</header>
+<main id="list"></main>
+<div id="sentinel"></div>
+<div id="end" hidden>— 到底了 —</div>
+<button id="top" hidden title="回到顶部">↑</button>
+<div id="toast" hidden>已复制到剪贴板</div>
+<script>
+var EMBED = null, MODE = 2;
+var $ = function(id){return document.getElementById(id)};
+var list=$('list'), stat=$('stat'), sentinel=$('sentinel'), endBox=$('end');
+var DATA=[], filtered=[], rendered=0, CHUNK=60;
+var q='', plat='', year='', cat='';
+
+function esc(s){return s.replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function hl(s){
+  if(!q||/[&<>"']/.test(q))return s;
+  try{var re=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+      return s.replace(re,function(m){return '<mark>'+m+'</mark>'})}catch(e){return s}
+}
+function wd(d){try{return '周'+'日一二三四五六'[new Date(d+'T12:00:00+08:00').getDay()]}catch(e){return ''}}
+
+var LSK='ldg_weibo_key', BLOB=null;
+async function dec(blob,pwd){
+  const enc=new TextEncoder();
+  const base=await crypto.subtle.importKey("raw",enc.encode(pwd),"PBKDF2",false,["deriveKey"]);
+  const key=await crypto.subtle.deriveKey(
+    {name:"PBKDF2",salt:Uint8Array.from(atob(blob.salt),function(c){return c.charCodeAt(0)}),iterations:blob.iters,hash:"SHA-256"},
+    base,{name:"AES-GCM",length:256},false,["decrypt"]);
+  const iv=Uint8Array.from(atob(blob.iv),function(c){return c.charCodeAt(0)});
+  const ct=Uint8Array.from(atob(blob.ct),function(c){return c.charCodeAt(0)});
+  const tag=Uint8Array.from(atob(blob.tag),function(c){return c.charCodeAt(0)});
+  const jt=new Uint8Array(ct.length+tag.length);jt.set(ct);jt.set(tag,ct.length);
+  return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,jt));
+}
+async function fetchDecrypted(){
+  if(!BLOB){
+    try{BLOB=await (await fetch('./data/posts.enc.json')).json()}
+    catch(e){stat.textContent='加载失败：请通过 GitHub Pages 访问（本地 file:// 会拦截 fetch）';return null}
+  }
+  var saved=localStorage.getItem(LSK)||'';
+  if(saved){try{return await dec(BLOB,saved)}catch(e){}}
+  for(;;){
+    var p=prompt('此内容仅限授权访问，请输入口令');
+    if(p===null){stat.textContent='需要口令才能查看';return null}
+    try{var t=await dec(BLOB,p);localStorage.setItem(LSK,p);return t}
+    catch(e){alert('口令不正确，请重试')}
+  }
+}
+async function load(){
+  if(MODE===1){DATA=norm(EMBED);buildFilters();apply();return}
+  var txt=await fetchDecrypted();
+  if(txt===null)return;
+  try{
+    var j=JSON.parse(txt);
+    DATA=norm(j.posts.map(function(p){return{d:p.date,p:'微博',k:'',x:p.text,t:p.truncated?1:0}}));
+    buildFilters();apply();
+  }catch(e){stat.textContent='数据解析失败'}
+}
+function norm(a){
+  return a.filter(function(p){return p&&p.d&&p.x})
+          .sort(function(a,b){return a.d<b.d?1:a.d>b.d?-1:0});
+}
+function buildFilters(){
+  var ys={},cs={},nw=0;
+  DATA.forEach(function(p){ys[p.d.slice(0,4)]=1;if(p.k)cs[p.k]=1;if(p.p==='微博')nw++});
+  var ysel=$('year');
+  Object.keys(ys).sort().reverse().forEach(function(y){var o=document.createElement('option');o.value=y;o.textContent=y+' 年';ysel.appendChild(o)});
+  var csel=$('cat');
+  Object.keys(cs).sort().forEach(function(c){var o=document.createElement('option');o.value=c;o.textContent=c;csel.appendChild(o)});
+  var chips=document.querySelectorAll('.chip');
+  chips[0].querySelector('b').textContent=DATA.length;
+  chips[1].querySelector('b').textContent=nw;
+  chips[2].querySelector('b').textContent=DATA.length-nw;
+  if(DATA.length-nw===0)chips[2].style.display='none';
+  if(!Object.keys(cs).length)csel.style.display='none';
+}
+function apply(){
+  q=$('q').value.trim().toLowerCase();
+  filtered=DATA.filter(function(p){
+    if(plat&&p.p!==plat)return false;
+    if(year&&p.d.slice(0,4)!==year)return false;
+    if(cat&&p.k!==cat)return false;
+    if(q&&p.x.toLowerCase().indexOf(q)<0&&p.k.toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  list.innerHTML='';rendered=0;
+  renderChunk();
+}
+function renderChunk(){
+  var stop=Math.min(rendered+CHUNK,filtered.length),frag=document.createDocumentFragment(),lastD=rendered>0?filtered[rendered-1].d:'';
+  for(var i=rendered;i<stop;i++){
+    var p=filtered[i];
+    if(p.d!==lastD){
+      var h=document.createElement('div');h.className='gh';
+      h.appendChild(document.createTextNode(p.d+' '));
+      var s=document.createElement('span');s.textContent=wd(p.d);h.appendChild(s);
+      frag.appendChild(h);lastD=p.d;
+    }
+    frag.appendChild(card(p));
+  }
+  list.appendChild(frag);rendered=stop;
+  var tail=filtered.length===0?' · 试试调整筛选':(rendered>=filtered.length?' · 到底啦':'');
+  stat.textContent='共 '+filtered.length+' 条 · 已显示 '+rendered+tail;
+  endBox.hidden=filtered.length===0?false:rendered<filtered.length;
+  endBox.textContent=filtered.length===0?'没有匹配的帖子':'— 到底了 —';
+}
+function card(p){
+  var art=document.createElement('article');art.className='art';
+  var meta='<span class="plat p'+p.p+'">'+p.p+'</span>';
+  if(p.k)meta+='<span class="k">'+esc(p.k)+'</span>';
+  if(p.t)meta+='<span class="cut">已截断</span>';
+  meta+='<span class="copy">复制</span>';
+  art.innerHTML='<div class="meta">'+meta+'</div><div class="x">'+hl(esc(p.x))+'</div>';
+  art.querySelector('.copy').addEventListener('click',function(){copyText(p.x)});
+  return art;
+}
+function copyText(t){
+  var done=function(){var tt=$('toast');tt.hidden=false;clearTimeout(copyText._t);copyText._t=setTimeout(function(){tt.hidden=true},1400)};
+  var fb=function(){var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}catch(e){}document.body.removeChild(ta)};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,fb);else fb();
+}
+document.querySelectorAll('.chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});
+    c.classList.add('on');plat=c.dataset.p;apply();
+  });
+});
+var deb;$('q').addEventListener('input',function(){clearTimeout(deb);deb=setTimeout(apply,220)});
+$('year').addEventListener('change',function(){year=this.value;apply()});
+$('cat').addEventListener('change',function(){cat=this.value;apply()});
+var root=document.documentElement;
+function setTheme(d){root.classList.toggle('dark',d);try{localStorage.setItem('theme',d?'dark':'light')}catch(e){}}
+var saved=null;try{saved=localStorage.getItem('theme')}catch(e){}
+setTheme(saved?saved==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches);
+$('theme').addEventListener('click',function(){setTheme(!root.classList.contains('dark'))});
+var topBtn=$('top');
+addEventListener('scroll',function(){topBtn.hidden=scrollY<700},{passive:true});
+topBtn.addEventListener('click',function(){scrollTo({top:0,behavior:'smooth'})});
+new IntersectionObserver(function(en){if(en[0].isIntersecting&&rendered<filtered.length)renderChunk()},{rootMargin:'900px'}).observe(sentinel);
+load();
+</script>
+</body>
+</html>

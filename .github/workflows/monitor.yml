@@ -1,0 +1,68 @@
+name: ludinggong-weibo-monitor
+
+on:
+  repository_dispatch:        # 外部触发（cron-job.org 等调用 API，无 schedule 延迟）
+    types: [monitor]
+  schedule:
+    - cron: "*/30 * * * *"    # 兜底：外部触发失效时仍定时运行（可能有延迟）
+  workflow_dispatch:          # 支持手动触发
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weibo-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sync latest base（排队运行可能拿到旧底库）
+        run: git pull --rebase origin main
+
+      - name: Install deps（pycryptodome：底库加密）
+        run: pip install -r requirements.txt
+
+      - name: Run monitor
+        env:
+          WEIBO_UID: "3962719063"
+          WEIBO_COOKIE: ${{ secrets.WEIBO_COOKIE }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          DATA_KEY: ${{ secrets.DATA_KEY }}
+        run: python monitor.py
+
+      - name: Commit & Push（push 被拒则重置到远端并重跑，数据幂等）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          commit_and_push() {
+            git add data/posts.enc.json
+            if git diff --cached --quiet; then
+              echo "posts.enc.json 无变化，跳过提交"
+              return 0
+            fi
+            git commit -m "monitor: 增量入库 $(date -u +'%Y-%m-%d %H:%M') UTC"
+            git push
+          }
+          if commit_and_push; then exit 0; fi
+          echo "push 被拒（并发撞车），重置到远端并重跑一次"
+          git fetch origin
+          git reset --hard origin/main
+          python monitor.py || true
+          if ! commit_and_push; then
+            echo "二次推送仍失败，保持远端现状（下次运行会补齐）"
+            git fetch origin
+            git reset --hard origin/main
+          fi
