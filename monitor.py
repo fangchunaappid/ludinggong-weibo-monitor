@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-weibo-monitor — 超级鹿鼎公微博原创帖增量监控
+weibo-monitor — 老舅微博原创帖增量监控
 =============================================
 功能：
-  1. 抓取 m.weibo.cn 时间线（UID 3962719063 = 挖地瓜的超级鹿鼎公）；
+  1. 抓取 m.weibo.cn 时间线（UID 3962719063 = 老舅）；
   2. 只收本人内容：原创帖 + 「回复@」粉丝帖，纯转发跳过；
   3. 增量去重：优先按微博 id，退化为 (日期, 正文) 键，绝不重复入库；
   4. 数据集 data/posts.json 按「新→旧」追加；
@@ -314,7 +314,7 @@ def send_feishu(text):
 
 
 def notify_feishu(n, date_min, date_max):
-    send_feishu("✅ 已成功将 %d 条超级鹿鼎公的微博原创帖加入帖子库（posts.json）"
+    send_feishu("✅ 已成功将 %d 条老舅的微博原创帖加入帖子库（posts.json）"
                 "（%s ~ %s）" % (n, date_min, date_max))
 
 
@@ -365,4 +365,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
