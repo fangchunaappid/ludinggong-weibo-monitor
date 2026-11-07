@@ -34,6 +34,14 @@ TZ = timezone(timedelta(hours=8))  # Asia/Shanghai
 MAX_PAGES = 30          # 单次运行最多翻页数（安全上限）
 PAGE_DELAY = 2.0        # 翻页间隔秒数（防风控）
 
+
+def sanitize_pii(text):
+    """入库前脱敏：身份证号、手机号、邮箱。"""
+    text = re.sub(r"(?<!\d)(\d{3})\d{11}(\d{3}[\dXx])(?!\d)", r"\1***********\2", text)
+    text = re.sub(r"(?<!\d)(1[3-9]\d)\d{4}(\d{4})(?!\d)", r"\1****\2", text)
+    text = re.sub(r"([A-Za-z0-9])[A-Za-z0-9._%+\-]*(@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})", r"\1***\2", text)
+    return text
+
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"),
@@ -248,6 +256,7 @@ def collect_new(existing_posts, cookie=None):
                 full = fetch_long_text(wid, cookie)
                 if len(full) > len(text):
                     text = full
+            text = sanitize_pii(text)
             key = (date, norm(text))
             if wid and wid in known_ids:
                 hit_known = True
