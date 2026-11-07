@@ -241,7 +241,7 @@ def collect_new(existing_posts, cookie=None):
 
         hit_known = False
         for mb in mblogs:
-            # 只收鹿鼎公本人的内容：原创帖，或他回复粉丝的帖子（正文以「回复@」开头）
+            # 只收老舅本人的内容：原创帖，或他回复粉丝的帖子（正文以「回复@」开头）
             text = clean_text(mb.get("text") or "")
             # 列表页截断的帖子尾部带「...全文」链接字样，去掉
             text = re.sub(r"(?:\.{3}|…)\s*全文$", "", text).strip()
@@ -332,13 +332,13 @@ def main():
         new, repaired, pages, first_ok = collect_new(posts, cookie)
     except RuntimeError as e:
         print("抓取失败：%s" % e)
-        send_feishu("⚠️ 鹿鼎公微博监控抓取失败（请求异常：%s），本次未入库，请检查 WEIBO_COOKIE。" % str(e)[:80])
+        send_feishu("⚠️ 老舅微博监控抓取失败（请求异常：%s），本次未入库，请检查 WEIBO_COOKIE。" % str(e)[:80])
         return 1
     print("抓取完成：翻 %d 页，新增原创帖 %d 条" % (pages, len(new)))
 
     if not first_ok:
         print("抓取失败：m.weibo.cn 首页无数据（432 反爬拦截或 Cookie 失效）。")
-        send_feishu("⚠️ 鹿鼎公微博监控抓取失败：m.weibo.cn 返回无数据（反爬拦截或 WEIBO_COOKIE 失效），"
+        send_feishu("⚠️ 老舅微博监控抓取失败：m.weibo.cn 返回无数据（反爬拦截或 WEIBO_COOKIE 失效），"
                     "本次未入库，请更新仓库 Secrets 中的 WEIBO_COOKIE。")
         return 1
 
