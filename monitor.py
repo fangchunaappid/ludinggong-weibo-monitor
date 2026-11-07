@@ -42,14 +42,6 @@ def sanitize_pii(text):
     text = re.sub(r"([A-Za-z0-9])[A-Za-z0-9._%+\-]*(@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})", r"\1***\2", text)
     return text
 
-
-def rename_display(text):
-    """显示名统一：把「鹿鼎公」相关称谓换成「老舅」（拼音 ludinggong / UID 不变）。"""
-    return (text
-            .replace("挖地瓜的超级鹿鼎公", "老舅")
-            .replace("超级鹿鼎公", "老舅")
-            .replace("鹿鼎公", "老舅"))
-
 HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
                    "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"),
@@ -90,8 +82,6 @@ def _reset_visitor():
 def load_posts():
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    for p in data.get("posts", []):
-        p["text"] = rename_display(p.get("text") or "")
     return data
 
 
@@ -267,7 +257,6 @@ def collect_new(existing_posts, cookie=None):
                 if len(full) > len(text):
                     text = full
             text = sanitize_pii(text)
-            text = rename_display(text)
             key = (date, norm(text))
             if wid and wid in known_ids:
                 hit_known = True
